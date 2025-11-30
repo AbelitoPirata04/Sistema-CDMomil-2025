@@ -1,5 +1,5 @@
 <?php
-// entrenadorAPI.php
+// api/entrenadorAPI.php - CORREGIDO PARA EVITAR ERRORES DE FECHA
 header('Access-Control-Allow-Origin: *');
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, PATCH, OPTIONS');
@@ -55,11 +55,11 @@ function obtenerEntrenadores($conn) {
 }
 
 function obtenerEntrenadorPorEspecialidad($conn) {
-    $especialidad = $_GET['especialidad'] ?? '';
-    if (empty($especialidad)) { obtenerEntrenadores($conn); return; }
+    $esp = $_GET['especialidad'] ?? '';
+    if (empty($esp)) { obtenerEntrenadores($conn); return; }
     
     $stmt = $conn->prepare("CALL obtenerEntrenadorPorEspecialidad(?)");
-    $stmt->bind_param("s", $especialidad);
+    $stmt->bind_param("s", $esp);
     $stmt->execute();
     $result = $stmt->get_result();
     $entrenadores = [];
@@ -69,28 +69,40 @@ function obtenerEntrenadorPorEspecialidad($conn) {
     echo json_encode($entrenadores);
 }
 
+// === CORRECCIÓN AQUÍ: Manejo seguro de datos vacíos ===
 function crearEntrenador($conn, $data) {
     if (!$data || empty($data['cedula']) || empty($data['nombre']) || empty($data['usuario']) || empty($data['contrasena'])) {
         echo json_encode(['success' => false, 'message' => 'Faltan datos obligatorios']);
         return;
     }
     
-    // Encriptar contraseña
+    // 1. Encriptar contraseña
     $hash = password_hash($data['contrasena'], PASSWORD_DEFAULT);
+
+    // 2. Limpiar Fecha (Si viene vacía "", la convertimos a NULL)
+    $fecha_contratacion = !empty($data['fecha_contratacion']) ? $data['fecha_contratacion'] : null;
+    
+    // 3. Limpiar Teléfono y Correo (Evitar vacíos, mejor NULL)
+    $telefono = !empty($data['telefono']) ? $data['telefono'] : null;
+    $correo = !empty($data['correo']) ? $data['correo'] : null;
+    $especialidad = !empty($data['especialidad']) ? $data['especialidad'] : null;
+    $experiencia = !empty($data['experiencia_años']) ? intval($data['experiencia_años']) : 0;
 
     $stmt = $conn->prepare("CALL registrarEntrenadores(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @res, @msg, @id)");
     $stmt->bind_param("ssssssisss", 
-        $data['cedula'], $data['nombre'], $data['apellido'], 
-        $data['telefono'], $data['correo'], $data['especialidad'], 
-        $data['experiencia_años'], $data['fecha_contratacion'],
-        $data['usuario'], $hash
+        $data['cedula'], 
+        $data['nombre'], 
+        $data['apellido'], 
+        $telefono, 
+        $correo, 
+        $especialidad, 
+        $experiencia, 
+        $fecha_contratacion, // Ahora sí envía NULL si está vacío
+        $data['usuario'], 
+        $hash
     );
-    $stmt->execute();
     
-    $result = $conn->query("SELECT @res as res, @msg as msg, @id as id");
-    $row = $result->fetch_assoc();
-    
-    echo json_encode(['success' => ($row['res'] == 1), 'message' => $row['msg'], 'id' => $row['id']]);
+    ejecutarSP($stmt, $conn);
 }
 
 function actualizarEntrenador($conn, $data) {
@@ -99,44 +111,58 @@ function actualizarEntrenador($conn, $data) {
         return;
     }
 
-    // Hash solo si hay contraseña nueva
     $hash = !empty($data['contrasena']) ? password_hash($data['contrasena'], PASSWORD_DEFAULT) : null;
+
+    // Limpieza de datos igual que en crear
+    $fecha_contratacion = !empty($data['fecha_contratacion']) ? $data['fecha_contratacion'] : null;
+    $telefono = !empty($data['telefono']) ? $data['telefono'] : null;
+    $correo = !empty($data['correo']) ? $data['correo'] : null;
+    $especialidad = !empty($data['especialidad']) ? $data['especialidad'] : null;
+    $experiencia = !empty($data['experiencia_años']) ? intval($data['experiencia_años']) : 0;
 
     $stmt = $conn->prepare("CALL actualizarEntrenador(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @res, @msg)");
     $stmt->bind_param("ssssssisss", 
-        $data['id'], $data['nombre'], $data['apellido'], 
-        $data['telefono'], $data['correo'], $data['especialidad'], 
-        $data['experiencia_años'], $data['fecha_contratacion'],
-        $data['usuario'], $hash
+        $data['id'], 
+        $data['nombre'], 
+        $data['apellido'], 
+        $telefono, 
+        $correo, 
+        $especialidad, 
+        $experiencia, 
+        $fecha_contratacion,
+        $data['usuario'], 
+        $hash
     );
-    $stmt->execute();
-    
-    $result = $conn->query("SELECT @res as res, @msg as msg");
-    $row = $result->fetch_assoc();
-    
-    echo json_encode(['success' => ($row['res'] == 1), 'message' => $row['msg']]);
+
+    ejecutarSP($stmt, $conn);
 }
 
 function eliminarEntrenador($conn) {
     $id = $_GET['id'] ?? null;
     $stmt = $conn->prepare("CALL eliminarEntrenador(?, @res, @msg)");
     $stmt->bind_param("s", $id);
-    $stmt->execute();
-    
-    $result = $conn->query("SELECT @res as res, @msg as msg");
-    $row = $result->fetch_assoc();
-    
-    echo json_encode(['success' => ($row['res'] == 1), 'message' => $row['msg']]);
+    ejecutarSP($stmt, $conn);
 }
 
 function asignarCategoria($conn, $data) {
     $stmt = $conn->prepare("CALL asignarCategoria(?, ?, @res, @msg)");
     $stmt->bind_param("ss", $data['id'], $data['categoria']);
-    $stmt->execute();
+    ejecutarSP($stmt, $conn);
+}
+
+function ejecutarSP($stmt, $conn) {
+    if (!$stmt->execute()) {
+        echo json_encode(['success' => false, 'message' => 'Error ejecutando SP: ' . $stmt->error]);
+        return;
+    }
     
-    $result = $conn->query("SELECT @res as res, @msg as msg");
-    $row = $result->fetch_assoc();
+    $stmt->close();
+    $res = $conn->query("SELECT @res as res, @msg as msg");
+    $row = $res->fetch_assoc();
     
-    echo json_encode(['success' => ($row['res'] == 1), 'message' => $row['msg']]);
+    echo json_encode([
+        'success' => ($row['res'] == 1),
+        'message' => $row['msg']
+    ]);
 }
 ?>

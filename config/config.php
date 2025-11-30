@@ -1,14 +1,10 @@
 <?php
-// config/config.php
+// config/config.php - INTELIGENTE
 
-// Detectamos si estamos en Railway revisando si existe una variable de entorno de la nube
+// Si existe la variable de entorno de Railway, estamos en la nube
 if (getenv('MYSQLHOST')) {
-    // ESTAMOS EN RAILWAY (Nube)
-    // Allá la ruta es la raíz del sitio
-    define('BASE_URL', '/');
+    define('BASE_URL', '/'); // En la nube, es la raíz
 } else {
-    // ESTAMOS EN XAMPP (Local)
-    // Aquí seguimos usando tu carpeta
-    define('BASE_URL', '/Proyecto_CDMomil/');
+    define('BASE_URL', '/Proyecto_CDMomil/'); // En local, es tu carpeta
 }
 ?>

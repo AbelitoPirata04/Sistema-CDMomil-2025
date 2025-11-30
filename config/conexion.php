@@ -1,17 +1,17 @@
 <?php
-// config/conexion.php - VERSIÓN BLINDADA (Soluciona "No database selected")
+// config/conexion.php - VERSIÓN FINAL CORREGIDA
 
-$env_host = getenv('MYSQLHOST');
+// 1. Intentar leer variables (Probamos ambas formas: con y sin guion bajo)
+$db_host = getenv('MYSQLHOST') ?: getenv('MYSQL_HOST');
+$db_user = getenv('MYSQLUSER') ?: getenv('MYSQL_USER');
+$db_pass = getenv('MYSQLPASSWORD') ?: getenv('MYSQL_PASSWORD');
+$db_port = getenv('MYSQLPORT') ?: getenv('MYSQL_PORT');
 
-if ($env_host) {
-    // NUBE (Railway)
-    $db_host = getenv('MYSQLHOST');
-    $db_user = getenv('MYSQLUSER');
-    $db_pass = getenv('MYSQLPASSWORD');
-    $db_name = getenv('MYSQLDATABASE'); 
-    $db_port = getenv('MYSQLPORT');
-} else {
-    // LOCAL (XAMPP)
+// AQUÍ ESTABA EL ERROR: Railway usa MYSQL_DATABASE (con guion bajo)
+$db_name = getenv('MYSQL_DATABASE') ?: getenv('MYSQLDATABASE'); 
+
+// Si no hay host de nube, usamos Local (XAMPP)
+if (!$db_host) {
     $db_host = 'localhost';
     $db_user = 'root';
     $db_pass = '';
@@ -19,20 +19,29 @@ if ($env_host) {
     $db_port = 3306;
 }
 
-// 1. Conectamos SOLO al servidor (dejamos el nombre de la DB vacío por ahora: "")
+// 2. Conectar al Servidor (Sin seleccionar DB todavía)
 $conn = new mysqli($db_host, $db_user, $db_pass, "", $db_port);
 
 if ($conn->connect_error) {
-    error_log("Error conectando al servidor: " . $conn->connect_error);
-    die("Error de conexión al servidor.");
+    die("Fallo al conectar al servidor SQL: " . $conn->connect_error);
 }
 
-// 2. AHORA SÍ, seleccionamos la base de datos explícitamente
-// Si falla con el nombre de la variable, intentamos con 'railway' que es el nombre por defecto
-if (!$conn->select_db($db_name)) {
-    if (!$conn->select_db('railway')) {
-        die("Error fatal: No se pudo seleccionar la base de datos '$db_name' ni 'railway'.");
-    }
+// 3. Seleccionar la Base de Datos
+// Intentamos con el nombre que trajimos de la variable
+$db_selected = false;
+if ($db_name && $conn->select_db($db_name)) {
+    $db_selected = true;
+} 
+// Si falló, intentamos con el nombre por defecto de Railway: 'railway'
+elseif ($conn->select_db('railway')) {
+    $db_selected = true;
+}
+
+if (!$db_selected) {
+    // Si llega aquí, mostramos el error en pantalla para que sepas qué pasó
+    die("ERROR CRÍTICO: No se pudo seleccionar la base de datos. <br>" .
+        "Intentamos conectar a: " . ($db_name ? $db_name : '(Vacío)') . "<br>" .
+        "Error MySQL: " . $conn->error);
 }
 
 $conn->set_charset("utf8");

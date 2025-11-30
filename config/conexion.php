@@ -1,23 +1,19 @@
 <?php
-// config/conexion.php - VERSIÓN A PRUEBA DE FALLOS
+// config/conexion.php - CORREGIDO PARA RAILWAY
 
-// 1. Intentar obtener variables de entorno (Railway)
-$env_host = $_ENV['MYSQLHOST'] ?? getenv('MYSQLHOST');
-$env_user = $_ENV['MYSQLUSER'] ?? getenv('MYSQLUSER');
-$env_pass = $_ENV['MYSQLPASSWORD'] ?? getenv('MYSQLPASSWORD');
-$env_db   = $_ENV['MYSQLDATABASE'] ?? getenv('MYSQLDATABASE');
-$env_port = $_ENV['MYSQLPORT'] ?? getenv('MYSQLPORT');
+// Detectar si estamos en Railway usando una variable de entorno
+// Si MYSQLHOST existe, estamos en la nube.
+$host_nube = getenv('MYSQLHOST');
 
-// 2. Decidir si usar Nube o Local
-if (!empty($env_host)) {
-    // Estamos en Railway
-    $db_host = $env_host;
-    $db_user = $env_user;
-    $db_pass = $env_pass;
-    $db_name = $env_db;
-    $db_port = $env_port;
+if ($host_nube) {
+    // ESTAMOS EN RAILWAY (Nube)
+    $db_host = getenv('MYSQLHOST');
+    $db_user = getenv('MYSQLUSER');
+    $db_pass = getenv('MYSQLPASSWORD');
+    $db_name = getenv('MYSQLDATABASE');
+    $db_port = getenv('MYSQLPORT');
 } else {
-    // Estamos en XAMPP (Local)
+    // ESTAMOS EN LOCAL (XAMPP)
     $db_host = 'localhost';
     $db_user = 'root';
     $db_pass = '';
@@ -25,11 +21,14 @@ if (!empty($env_host)) {
     $db_port = 3306;
 }
 
-// 3. Conectar
+// Crear conexión
 $conn = new mysqli($db_host, $db_user, $db_pass, $db_name, $db_port);
 
+// Verificar errores
 if ($conn->connect_error) {
-    die("Error de conexión: " . $conn->connect_error);
+    // Esto imprimirá el error en los logs de Railway si falla
+    error_log("Error de conexión a BD: " . $conn->connect_error);
+    die("Error de conexión a la base de datos.");
 }
 
 $conn->set_charset("utf8");

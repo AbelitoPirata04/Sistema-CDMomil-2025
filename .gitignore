@@ -1,0 +1,17 @@
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Carpetas de IDE
+.vscode/
+.idea/
+
+# Archivos de logs
+*.log
+
+# Dependencias (si usaras composer/npm en el futuro)
+vendor/
+node_modules/
+
+# Archivos de entorno (opcional, por seguridad)
+.env

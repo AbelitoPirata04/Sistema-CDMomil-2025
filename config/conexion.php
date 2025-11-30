@@ -1,21 +1,27 @@
 <?php
+// config/conexion.php MODIFICADO PARA DESPLIEGUE
 
-$host = "localhost";
-$usuario = "root";
-$contrasena = "";
-$base_datos = "cdmomil";
+// Credenciales por defecto (XAMPP Local)
+$db_host = 'localhost';
+$db_user = 'root';
+$db_pass = '';
+$db_name = 'cdmomil';
+$db_port = 3306;
 
-// Crear conexión
-$conn = new mysqli($host, $usuario, $contrasena, $base_datos);
-
-// Verificar conexión
-if ($conn->connect_error) {
-    // En lugar de die() con salida HTML, lanzamos una excepción.
-    // Esto permite que el script que incluye conexion.php (ej. partidosAPI.php)
-    // capture este error y lo maneje adecuadamente (ej. respondiendo con JSON de error).
-    throw new Exception("Error de conexión a la base de datos: " . $conn->connect_error);
+// Si estamos en Railway (o producción), usamos sus variables de entorno
+if (getenv('RAILWAY_ENVIRONMENT')) {
+    $db_host = $_ENV['MYSQLHOST'];
+    $db_user = $_ENV['MYSQLUSER'];
+    $db_pass = $_ENV['MYSQLPASSWORD'];
+    $db_name = $_ENV['MYSQLDATABASE'];
+    $db_port = $_ENV['MYSQLPORT'];
 }
 
-// Establecer charset para caracteres especiales
-$conn->set_charset("utf8mb4");
+$conn = new mysqli($db_host, $db_user, $db_pass, $db_name, $db_port);
 
+if ($conn->connect_error) {
+    die("Error de conexión: " . $conn->connect_error);
+}
+
+$conn->set_charset("utf8");
+?>

@@ -16,7 +16,7 @@ const tablaUsuarios = document.getElementById('tablaUsuarios');
 
 // Variables globales
 let usuarioEditando = null;
-const API_URL = 'http://localhost/Proyecto_CDMomil/api/usuarioAPI.php';
+const API_URL = '../api/usuarioAPI.php';
 
 // Funciones de navegación y UI
 function toggleMenu() {

@@ -43,7 +43,7 @@ if (
 try {
     // Incluir la conexión DENTRO del try-catch principal.
     // Si conexion.php lanza una Exception, será capturada aquí.
-    require_once '../config/conexion.php';
+   require_once __DIR__ . '/../config/conexion.php';
 
     // Definición de la clase UsuarioController
     class UsuarioController {
